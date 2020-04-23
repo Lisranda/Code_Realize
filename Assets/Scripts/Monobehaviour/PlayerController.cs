@@ -4,12 +4,17 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [SerializeField] LayerMask mouseLookLayer;
+    [SerializeField] float speedBase = 8f;
+    [SerializeField] float speedRunMultiplier = 1.5f;
 
+    LayerMask mouseLookLayer;
     Camera cam;
+    Motor motor;
     
     void Awake () {
+        mouseLookLayer = LayerMask.GetMask ("MouseLook");
         cam = GetComponentInChildren<Camera> ();
+        motor = GetComponent<Motor> ();
     }
 
     void Update () {
@@ -26,7 +31,7 @@ public class PlayerController : MonoBehaviour
 
     void Movement () {
         Vector3 input = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0 , Input.GetAxisRaw ("Vertical"));
-        transform.Translate (input * 8f * Time.deltaTime);
+        motor.Move (input , speedBase);
     }
 
 }
