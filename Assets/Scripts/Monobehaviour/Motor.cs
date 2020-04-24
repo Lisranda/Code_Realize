@@ -7,4 +7,8 @@ public class Motor : MonoBehaviour
     public void Move (Vector3 direction, float speed) {
         transform.Translate (direction * speed * Time.deltaTime);
     }
+
+    public void Move (Vector3 velocity) {
+        transform.Translate (velocity * Time.deltaTime);
+    }
 }
