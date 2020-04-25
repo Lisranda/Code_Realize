@@ -3,69 +3,77 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class PlayerController : MonoBehaviour {
-    [SerializeField] float speedMaximum = 12f;
+public enum Speed { Walk , Run , Sprint }
 
-    //[SerializeField] float speedModifierReverse = 1 / 3f;
-    //[SerializeField] float speedModifierStrafe = 1 / 2f;
-    [SerializeField] float speedModifierWalk = 2 / 3f;
+public class PlayerController : PawnController {
+    [SerializeField]
+    bool isGrounded = true;
 
-    [SerializeField] float speedBase = 8f;
-    
-    float currentSpeed = 0f;
-
-    LayerMask mouseLookLayer;
     Camera cam;
     Motor motor;
-    Vector3 velocity = Vector3.zero;
+    PawnPlayer pawnPlayer;
     
-    void Awake () {
-        mouseLookLayer = LayerMask.GetMask ("MouseLook");
+    protected override void Awake () {
         cam = GetComponentInChildren<Camera> ();
         motor = GetComponent<Motor> ();
+        pawnPlayer = GetComponent<PawnPlayer> ();        
     }
 
-    void Update () { 
-        FaceMouse ();
-        //Movement ();
-        MovementTest ();
-    }
-
-    public Vector3 Velocity () {
-        return velocity;
-    }
-
-    public float SpeedMaximum () {
-        return speedMaximum;
+    void Update () {
+        //FaceMouse ();
+        RotationTest ();
+        Movement ();
     }
 
     void FaceMouse () {
-        Plane normalPlane = new Plane (transform.up , transform.position);
+        Plane normalPlane = new Plane (Vector3.up , transform.position);
         Ray ray = cam.ScreenPointToRay (Input.mousePosition);
         if (normalPlane.Raycast (ray , out float hitDistance)) {
             Vector3 hitPoint = ray.GetPoint (hitDistance);
+
+            Vector3 direction = hitPoint - transform.position;
+            float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
+            float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
+            float deltaAngle = Mathf.DeltaAngle (currentAngle , targetAngle);
+            Debug.Log (deltaAngle);
+
             transform.LookAt (hitPoint);
         }
     }
 
-    void Movement () {
-        Vector3 input = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0 , Input.GetAxisRaw ("Vertical"));
-        motor.Move (input , speedBase);
+    void RotationTest () {
+        Plane normalPlane = new Plane (Vector3.up , transform.position);
+        Ray ray = cam.ScreenPointToRay (Input.mousePosition);
+        if (normalPlane.Raycast (ray , out float hitDistance)) {
+            Vector3 hitPoint = ray.GetPoint (hitDistance);
+            Quaternion targetRotation = Quaternion.LookRotation (hitPoint - transform.position);
+            targetRotation.x = 0;
+            targetRotation.z = 0;
+
+            Vector3 direction = hitPoint - transform.position;
+            float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
+            float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
+            AngleRotation = Mathf.DeltaAngle (currentAngle , targetAngle);
+
+            transform.rotation = Quaternion.Slerp (transform.rotation , targetRotation , 7f * Time.deltaTime);            
+        }
     }
 
-    void MovementTest () {
-        velocity = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0 , Input.GetAxisRaw ("Vertical"));
-
-        if (velocity == Vector3.zero)
+    void Movement () {
+        if (!isGrounded)
             return;
 
-        if (Input.GetButton ("Sprint"))
-            velocity *= speedMaximum;
-        else
-            velocity *= speedMaximum * speedModifierWalk;
-
-        Debug.Log (velocity.magnitude);
-        motor.Move (velocity);
+        AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
+        motor.Move (AxesMovement * GetSpeed ());
     }
 
+    float GetSpeed () {
+        float speed = pawnPlayer.SpeedWalk;
+        SpeedLevel = Speed.Walk;
+        if (Input.GetButton ("Sprint")) {
+            speed = pawnPlayer.SpeedSprint;
+            SpeedLevel = Speed.Sprint;
+        }
+        return speed;
+    }
 }

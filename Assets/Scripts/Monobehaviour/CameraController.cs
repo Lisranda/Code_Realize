@@ -4,15 +4,17 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    GameObject player;
-    Quaternion initRotation;
-    Camera cam;
+    [SerializeField] [Range (5 , 20)]
+    float cameraDistance = 15f;
 
+    GameObject player;
+    Quaternion initialRotation;
+    Camera cam;
 
     void Awake () {
         player = transform.parent.gameObject;
-        initRotation = transform.rotation;
-        transform.position = player.transform.position - 15f * transform.forward;
+        initialRotation = transform.rotation;
+        transform.position = player.transform.position - cameraDistance * transform.forward;
         cam = GetComponent<Camera> ();
     }
 
@@ -21,7 +23,7 @@ public class CameraController : MonoBehaviour
     }
 
     void FixCamera () {
-        transform.rotation = initRotation;
-        transform.position = player.transform.position - 15f * transform.forward;
+        transform.rotation = initialRotation;
+        transform.position = player.transform.position - cameraDistance * transform.forward;
     }
 }

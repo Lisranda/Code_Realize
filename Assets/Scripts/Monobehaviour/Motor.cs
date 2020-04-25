@@ -4,11 +4,13 @@ using UnityEngine;
 
 public class Motor : MonoBehaviour
 {
-    public void Move (Vector3 direction, float speed) {
-        transform.Translate (direction * speed * Time.deltaTime);
+    CharacterController controller;
+
+    void Awake () {
+        controller = GetComponent<CharacterController> ();
     }
 
     public void Move (Vector3 velocity) {
-        transform.Translate (velocity * Time.deltaTime);
+        controller.Move (transform.TransformDirection (velocity) * Time.deltaTime);
     }
 }
