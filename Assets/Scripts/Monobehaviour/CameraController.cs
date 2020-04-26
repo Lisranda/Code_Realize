@@ -4,12 +4,13 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    [SerializeField] [Range (5 , 20)]
-    float cameraDistance = 15f;
-
     GameObject player;
     Quaternion initialRotation;
     Camera cam;
+
+    [SerializeField]
+    [Range (5 , 20)]
+    float cameraDistance = 15f;
 
     void Awake () {
         player = transform.parent.gameObject;

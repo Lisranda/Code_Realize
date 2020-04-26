@@ -6,22 +6,25 @@ using UnityEngine.AI;
 public enum Speed { Walk , Run , Sprint }
 
 public class PlayerController : PawnController {
-    [SerializeField]
-    bool isGrounded = true;
-
     Camera cam;
-    Motor motor;
+    CharacterController controller;
     PawnPlayer pawnPlayer;
+    Level level;
+
+    bool isGrounded = true;
     
     protected override void Awake () {
         cam = GetComponentInChildren<Camera> ();
-        motor = GetComponent<Motor> ();
-        pawnPlayer = GetComponent<PawnPlayer> ();        
+        controller = GetComponent<CharacterController> ();
+        pawnPlayer = GetComponent<PawnPlayer> ();
+    }
+
+    void OnEnable () {
+        level = GetComponentInParent<Level> ();
     }
 
     void Update () {
-        //FaceMouse ();
-        RotationTest ();
+        FaceMouse ();
         Movement ();
     }
 
@@ -30,13 +33,6 @@ public class PlayerController : PawnController {
         Ray ray = cam.ScreenPointToRay (Input.mousePosition);
         if (normalPlane.Raycast (ray , out float hitDistance)) {
             Vector3 hitPoint = ray.GetPoint (hitDistance);
-
-            Vector3 direction = hitPoint - transform.position;
-            float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
-            float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
-            float deltaAngle = Mathf.DeltaAngle (currentAngle , targetAngle);
-            Debug.Log (deltaAngle);
-
             transform.LookAt (hitPoint);
         }
     }
@@ -50,30 +46,45 @@ public class PlayerController : PawnController {
             targetRotation.x = 0;
             targetRotation.z = 0;
 
-            Vector3 direction = hitPoint - transform.position;
-            float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
-            float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
-            AngleRotation = Mathf.DeltaAngle (currentAngle , targetAngle);
+            //Vector3 direction = hitPoint - transform.position;
+            //float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
+            //float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
+            //AngleRotation = Mathf.DeltaAngle (currentAngle , targetAngle);
 
             transform.rotation = Quaternion.Slerp (transform.rotation , targetRotation , 7f * Time.deltaTime);            
         }
     }
 
-    void Movement () {
-        if (!isGrounded)
-            return;
+    void Movement () { 
+        if (isGrounded) {
+            AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
+            velocity = transform.TransformDirection (AxesMovement) * GetSpeed (AxesMovement);          
 
-        AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
-        motor.Move (AxesMovement * GetSpeed ());
-    }
-
-    float GetSpeed () {
-        float speed = pawnPlayer.SpeedWalk;
-        SpeedLevel = Speed.Walk;
-        if (Input.GetButton ("Sprint")) {
-            speed = pawnPlayer.SpeedSprint;
-            SpeedLevel = Speed.Sprint;
+            if (Input.GetButtonDown ("Jump")) {
+                velocity.y = pawnPlayer.JumpStrength;
+            }
         }
-        return speed;
+        velocity.y -= level.Gravity * pawnPlayer.GravityModifier * Time.deltaTime;        
+        isGrounded = (controller.Move (velocity * Time.deltaTime) & CollisionFlags.Below) != 0;
+    } 
+
+    float GetSpeed (Vector3 MovementVector) {
+        if (MovementVector.z < 0) {
+            SpeedLevel = Speed.Walk;
+            return pawnPlayer.SpeedWalk;
+        }
+
+        if (MovementVector.x != 0) {
+            SpeedLevel = Speed.Run;
+            return pawnPlayer.SpeedRun;
+        }
+
+        if (Input.GetButton ("Sprint")) {
+            SpeedLevel = Speed.Sprint;
+            return pawnPlayer.SpeedSprint;
+        }
+
+        SpeedLevel = Speed.Run;
+        return pawnPlayer.SpeedRun;
     }
 }
