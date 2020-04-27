@@ -7,34 +7,47 @@ public enum Speed { Walk , Run , Sprint }
 
 public class PlayerController : PawnController {
     Camera cam;
-    CharacterController controller;
+    Motor motor;
     PawnPlayer pawnPlayer;
-    Level level;
+    Rigidbody rb;
 
     bool isGrounded = true;
+    float jumpForce = 0f;
+    Quaternion targetRotation = Quaternion.identity;
     
     protected override void Awake () {
         cam = GetComponentInChildren<Camera> ();
-        controller = GetComponent<CharacterController> ();
+        motor = GetComponent<Motor> ();
         pawnPlayer = GetComponent<PawnPlayer> ();
-    }
-
-    void OnEnable () {
-        level = GetComponentInParent<Level> ();
+        rb = GetComponent<Rigidbody> ();
     }
 
     void Update () {
-        FaceMouse ();
-        Movement ();
+        CheckGrounding ();
+        FaceMouseInput ();
+        MovementInput ();
+        JumpInput ();
     }
 
-    void FaceMouse () {
-        Plane normalPlane = new Plane (Vector3.up , transform.position);
+    void FixedUpdate () {
+        FaceMousePhysics ();
+        MovementPhysics ();
+        JumpPhysics ();
+    }
+
+    void FaceMouseInput () {
+        Plane normalPlane = new Plane (Vector3.up , rb.position);
         Ray ray = cam.ScreenPointToRay (Input.mousePosition);
         if (normalPlane.Raycast (ray , out float hitDistance)) {
             Vector3 hitPoint = ray.GetPoint (hitDistance);
-            transform.LookAt (hitPoint);
+            targetRotation = Quaternion.LookRotation (hitPoint - rb.position);
+            targetRotation.x = 0;
+            targetRotation.z = 0;            
         }
+    }
+
+    void FaceMousePhysics () {
+        rb.rotation = Quaternion.Slerp (rb.rotation , targetRotation , 7f * Time.fixedDeltaTime);
     }
 
     void RotationTest () {
@@ -51,22 +64,40 @@ public class PlayerController : PawnController {
             //float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
             //AngleRotation = Mathf.DeltaAngle (currentAngle , targetAngle);
 
-            transform.rotation = Quaternion.Slerp (transform.rotation , targetRotation , 7f * Time.deltaTime);            
+            rb.rotation = Quaternion.Slerp (transform.rotation , targetRotation , 7f * Time.deltaTime);            
         }
     }
 
-    void Movement () { 
-        if (isGrounded) {
-            AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
-            velocity = transform.TransformDirection (AxesMovement) * GetSpeed (AxesMovement);          
+    void MovementInput () {
+        if (!isGrounded)
+            return;
+        AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
+        velocity = transform.TransformDirection (AxesMovement) * GetSpeed (AxesMovement);
+    }
 
-            if (Input.GetButtonDown ("Jump")) {
-                velocity.y = pawnPlayer.JumpStrength;
-            }
+    void MovementPhysics () {
+        rb.MovePosition (rb.position + velocity * Time.fixedDeltaTime);
+    }
+
+    void JumpInput () {
+        if (!isGrounded)
+            return;
+        if (Input.GetButtonDown ("Jump")) {
+            jumpForce = pawnPlayer.JumpStrength;
         }
-        velocity.y -= level.Gravity * pawnPlayer.GravityModifier * Time.deltaTime;        
-        isGrounded = (controller.Move (velocity * Time.deltaTime) & CollisionFlags.Below) != 0;
-    } 
+    }
+
+    void JumpPhysics () {
+        if (jumpForce == 0)
+            return;
+        rb.AddForce (0f , jumpForce , 0f , ForceMode.VelocityChange);
+        jumpForce = 0;
+        isGrounded = false;
+    }
+
+    void CheckGrounding () {
+        isGrounded = Physics.Raycast (rb.position + Vector3.up , Vector3.down , 1.25f) ? true : false;
+    }
 
     float GetSpeed (Vector3 MovementVector) {
         if (MovementVector.z < 0) {

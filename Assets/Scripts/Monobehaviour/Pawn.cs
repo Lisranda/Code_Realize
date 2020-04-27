@@ -21,7 +21,7 @@ public class Pawn : MonoBehaviour
     protected float gravityModifier = 1f;
 
     [SerializeField]
-    [Range (0 , 50)]
+    [Range (0 , 200)]
     protected float jumpStrength = 20f;
 
     public float SpeedWalk { get { return speedWalk; } protected set { } }
