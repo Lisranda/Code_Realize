@@ -3,39 +3,66 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
-public enum Speed { Walk , Run , Sprint }
-
 public class PlayerController : PawnController {
     Camera cam;
-    Motor motor;
     PawnPlayer pawnPlayer;
     Rigidbody rb;
+    Animator animator;
+    CapsuleCollider collide;
+
+    [Header ("Smooth Times")]
+    [SerializeField]
+    [Range (0 , 1)]
+    float locomotionSmooth = .1f;
+
+    Quaternion targetRotation = Quaternion.identity;
+
+    Vector3 movementDirection;
+
+    float Speed {
+        get {
+            if (isSprinting)
+                return pawnPlayer.SpeedSprint;
+            if (movementDirection.z < 0)
+                return pawnPlayer.SpeedWalk;
+            return pawnPlayer.SpeedRun;
+        }
+    }
+    float rollingSpeed = 0f;
 
     bool isGrounded = true;
-    float jumpForce = 0f;
-    Quaternion targetRotation = Quaternion.identity;
-    
-    protected override void Awake () {
+    bool isSprinting = false;
+    bool jump = false;
+
+    bool isRolling = false;
+    bool roll = false;
+
+    void Awake () {
         cam = GetComponentInChildren<Camera> ();
-        motor = GetComponent<Motor> ();
         pawnPlayer = GetComponent<PawnPlayer> ();
         rb = GetComponent<Rigidbody> ();
+        animator = GetComponentInChildren<Animator> ();
+        collide = GetComponent<CapsuleCollider> ();
     }
 
     void Update () {
-        CheckGrounding ();
+        Grounded ();
         FaceMouseInput ();
         MovementInput ();
         JumpInput ();
+        RollInput ();
     }
 
     void FixedUpdate () {
         FaceMousePhysics ();
         MovementPhysics ();
         JumpPhysics ();
+        RollPhysics ();
     }
 
     void FaceMouseInput () {
+        if (!isGrounded || isRolling)
+            return;
         Plane normalPlane = new Plane (Vector3.up , rb.position);
         Ray ray = cam.ScreenPointToRay (Input.mousePosition);
         if (normalPlane.Raycast (ray , out float hitDistance)) {
@@ -50,72 +77,75 @@ public class PlayerController : PawnController {
         rb.rotation = Quaternion.Slerp (rb.rotation , targetRotation , 7f * Time.fixedDeltaTime);
     }
 
-    void RotationTest () {
-        Plane normalPlane = new Plane (Vector3.up , transform.position);
-        Ray ray = cam.ScreenPointToRay (Input.mousePosition);
-        if (normalPlane.Raycast (ray , out float hitDistance)) {
-            Vector3 hitPoint = ray.GetPoint (hitDistance);
-            Quaternion targetRotation = Quaternion.LookRotation (hitPoint - transform.position);
-            targetRotation.x = 0;
-            targetRotation.z = 0;
+    void MovementInput () {
+        if (!isGrounded || isRolling)
+            return;
+        movementDirection = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
+        animator.SetFloat ("axisHorizontal" , movementDirection.x , locomotionSmooth , Time.deltaTime);
+        animator.SetFloat ("axisVertical" , movementDirection.z , locomotionSmooth , Time.deltaTime);
 
-            //Vector3 direction = hitPoint - transform.position;
-            //float currentAngle = Mathf.Atan2 (transform.forward.x , transform.forward.z) * Mathf.Rad2Deg;
-            //float targetAngle = Mathf.Atan2 (direction.x , direction.z) * Mathf.Rad2Deg;
-            //AngleRotation = Mathf.DeltaAngle (currentAngle , targetAngle);
-
-            rb.rotation = Quaternion.Slerp (transform.rotation , targetRotation , 7f * Time.deltaTime);            
+        isSprinting = false;
+        if (Input.GetButton ("Sprint") && movementDirection.z == 1 && movementDirection.x == 0) {
+            isSprinting = true;
+            animator.SetFloat ("axisVertical" , movementDirection.z * 2f , locomotionSmooth , Time.deltaTime);
         }
     }
 
-    void MovementInput () {
-        if (!isGrounded)
-            return;
-        AxesMovement = new Vector3 (Input.GetAxisRaw ("Horizontal") , 0f , Input.GetAxisRaw ("Vertical"));
-        velocity = transform.TransformDirection (AxesMovement) * GetSpeed (AxesMovement);
-    }
-
     void MovementPhysics () {
+        Vector3 velocity = transform.TransformDirection (movementDirection) * Speed;
         rb.MovePosition (rb.position + velocity * Time.fixedDeltaTime);
     }
 
     void JumpInput () {
-        if (!isGrounded)
+        if (!isGrounded || isRolling)
             return;
         if (Input.GetButtonDown ("Jump")) {
-            jumpForce = pawnPlayer.JumpStrength;
+            jump = true;            
         }
     }
 
     void JumpPhysics () {
-        if (jumpForce == 0)
+        if (!jump)
             return;
-        rb.AddForce (0f , jumpForce , 0f , ForceMode.VelocityChange);
-        jumpForce = 0;
-        isGrounded = false;
+        rb.AddForce (Vector3.up * pawnPlayer.JumpStrength , ForceMode.Impulse);
+        animator.SetTrigger ("jump");
+        jump = false;
     }
 
-    void CheckGrounding () {
-        isGrounded = Physics.Raycast (rb.position + Vector3.up , Vector3.down , 1.25f) ? true : false;
+    void RollInput () {
+        if (!isGrounded || isRolling)
+            return;
+        if (Input.GetButtonDown ("Roll")) {
+            roll = true;
+            isRolling = true;
+            rollingSpeed = pawnPlayer.SpeedRoll;
+        }
     }
 
-    float GetSpeed (Vector3 MovementVector) {
-        if (MovementVector.z < 0) {
-            SpeedLevel = Speed.Walk;
-            return pawnPlayer.SpeedWalk;
+    void RollPhysics () {
+        if (!roll && !isRolling)
+            return;
+        if (movementDirection == Vector3.zero)
+            movementDirection = Vector3.forward;
+        Vector3 velocity = transform.TransformDirection (movementDirection) * rollingSpeed;
+        rb.MovePosition (rb.position + velocity * Time.fixedDeltaTime);
+        rollingSpeed -= rollingSpeed * 5f * Time.fixedDeltaTime;
+        if (rollingSpeed < 2f) {
+            isRolling = false;
+            animator.SetBool ("isRolling" , false);
         }
 
-        if (MovementVector.x != 0) {
-            SpeedLevel = Speed.Run;
-            return pawnPlayer.SpeedRun;
+        if (roll) {
+            animator.SetTrigger ("roll");
+            animator.SetBool ("isRolling" , true);
+            roll = false;
         }
-
-        if (Input.GetButton ("Sprint")) {
-            SpeedLevel = Speed.Sprint;
-            return pawnPlayer.SpeedSprint;
-        }
-
-        SpeedLevel = Speed.Run;
-        return pawnPlayer.SpeedRun;
     }
+    
+    void Grounded () {
+        Ray ray = new Ray (rb.position + Vector3.up , Vector3.down);
+        isGrounded = Physics.SphereCast (ray , collide.radius , 1.1f);
+        animator.SetBool ("isGrounded" , isGrounded);
+    }
+
 }

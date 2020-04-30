@@ -226,11 +226,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400050, guid: e42d9259129992a4d95e0b320ca2a43d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.19
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400050, guid: e42d9259129992a4d95e0b320ca2a43d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.07
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 400050, guid: e42d9259129992a4d95e0b320ca2a43d, type: 3}
       propertyPath: m_LocalPosition.z
@@ -301,8 +301,6 @@ GameObject:
   - component: {fileID: 898541563}
   - component: {fileID: 898541558}
   - component: {fileID: 898541561}
-  - component: {fileID: 898541562}
-  - component: {fileID: 898541564}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -325,8 +323,8 @@ MonoBehaviour:
   speedWalk: 3
   speedRun: 6
   speedSprint: 12
-  gravityModifier: 1
-  jumpStrength: 12
+  speedRoll: 18
+  jumpStrength: 6
 --- !u!54 &898541559
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -371,18 +369,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dfc86aecbb834ac4aa0d2bf6467220e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &898541562
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 898541557}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e9749be41bb1bc343851eade6b983a87, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
   locomotionSmooth: 0.1
 --- !u!136 &898541563
 CapsuleCollider:
@@ -398,18 +384,6 @@ CapsuleCollider:
   m_Height: 2.75
   m_Direction: 1
   m_Center: {x: 0, y: 1.375, z: 0}
---- !u!114 &898541564
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 898541557}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d1da49fc20c98e448219961d2c8cd56, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &963194225
 GameObject:
   m_ObjectHideFlags: 0
